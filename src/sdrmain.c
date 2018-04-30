@@ -329,14 +329,20 @@ extern void *sdrthread(void *arg)
                 }
 
                 if (sdr->no==1&&cnt%(1000*10)==0)
+				//if (cnt%(1000*10)==0)
 				{
 					time_t t;  
 					time(&t);
 					//SDRPRINTF("process %d sec...\n",(int)cnt/(1000));
-                    SDRPRINTF("process %d sec((bufflocnow-buffloc)/buffsize=%.1f%%)...%s",
-						(int)cnt/(1000),100.0f*(double)(bufflocnow-buffloc)/(double)sdrstat.buffsize,
+                    SDRPRINTF("%s process %d sec((bufflocnow-buffloc)/buffsize=%.1f%%)...%s",
+						sdr->satstr,
+						(int)cnt/(1000),
+						100.0f*(double)(bufflocnow-buffloc)/(double)sdrstat.buffsize,
 															ctime(&t));
+					
 				}
+				//if (cnt%(1000*10)==0)
+				//	SDRPRINTF("%s status:flagacq=%d flagtrk=%d\n",sdr->satstr,sdr->flagacq,sdr->flagtrk);
 
                 /* write tracking log */
                 if (sdrini.log) writelog(fp,&sdr->trk,&sdr->nav);

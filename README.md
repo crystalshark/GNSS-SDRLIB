@@ -1,5 +1,8 @@
 GNSS-SDRLIB For MAX2769(NetWork Transfer)
-本程序在GNSS-SDRLIB v2.0 Beta(Taro Suzuki，最下面有介绍)基础上修改。
+
+
+本程序在GNSS-SDRLIB v2.0 Beta(Taro Suzuki，最下面有介绍)基础上修改，目前只有命令行版本才可用。
+
 1.在bin目录下放置了 RTKLIB bin 方便使用
 
 

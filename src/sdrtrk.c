@@ -37,6 +37,7 @@ extern uint64_t sdrtracking(sdrch_t *sdr, uint64_t buffloc, uint64_t cnt)
         memcpy(sdr->trk.oldQ,sdr->trk.QQ,1+2*sdr->trk.corrn*sizeof(double));
         sdr->trk.oldremcode=sdr->trk.remcode;
         sdr->trk.oldremcarr=sdr->trk.remcarr;
+
         /* correlation */
         correlator(data,sdr->dtype,sdr->ti,sdr->currnsamp,sdr->trk.carrfreq,
             sdr->trk.oldremcarr,sdr->trk.codefreq, sdr->trk.oldremcode,
