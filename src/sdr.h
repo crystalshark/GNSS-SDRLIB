@@ -132,6 +132,9 @@ extern "C" {
 #define FEND_FRTLSDR  8                /* front end type: RTL-SDR binary file */
 #define FEND_FBLADERF 9                /* front end type: BladeRF binary file */
 #define FEND_FILE     10               /* front end type: IF file */
+#define FEND_MAX2769_NET   11
+
+
 #define FTYPE1        1                /* front end number */
 #define FTYPE2        2                /* front end number */
 #define DTYPEI        1                /* sampling type: real */
@@ -145,7 +148,7 @@ extern "C" {
 
 #else
 //#define MEMBUFFLEN		2500             /* number of temporary buffer */
-#define MEMBUFFLEN		400             /* number of temporary buffer */
+#define MEMBUFFLEN		800             /* number of temporary buffer */
 #define FILE_BUFFSIZE	(65536*4*6)            /* buffer size for post processing */
 #define READFILE_DELAYMS   (90)            //读一次数据后的延时。避免读取数据太快而处理数据太慢，导致溢出
 #endif
@@ -639,7 +642,8 @@ extern mlock_t hbuffmtx;      /* buffer access mutex */
 extern mlock_t hreadmtx;      /* buffloc access mutex */
 extern mlock_t hfftmtx;       /* fft function mutex */
 extern mlock_t hpltmtx;       /* plot function mutex */
-extern mlock_t hobsmtx;       /* observation data access mutex */
+//extern mlock_t hobsmtx;       /* observation data access mutex */
+extern mlock_t hobsmtx[MAXSAT];
 extern mlock_t hlexmtx;       /* QZSS LEX mutex */
 extern event_t hlexeve;       /* QZSS LEX event */
 
@@ -706,7 +710,9 @@ extern int getfullpath(char *relpath, char *abspath);
 extern unsigned long tickgetus(void);
 extern void sleepus(int usec);
 extern void settimeout(struct timespec *timeout, int waitms);
-extern double log2(double n);
+
+//extern double log2(double n);  //[ws]
+
 extern int calcfftnum(double x, int next);
 extern void *sdrmalloc(size_t size);
 extern void sdrfree(void *p);

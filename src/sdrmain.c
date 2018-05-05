@@ -19,7 +19,8 @@ mlock_t hbuffmtx;
 mlock_t hreadmtx;
 mlock_t hfftmtx;
 mlock_t hpltmtx;
-mlock_t hobsmtx;
+//mlock_t hobsmtx;
+mlock_t hobsmtx[MAXSAT];
 mlock_t hlexmtx;
 event_t hlexeve;
 
@@ -85,6 +86,8 @@ int main(int argc, char **argv)
 {
     /* read ini file */
     if (readinifile(&sdrini)<0) {
+		SDRPRINTF("Press 'x' to exit\n");
+		while (getchar() != 'x');
         return -1; 
     }
     cratethread(hkeythread,keythread,NULL);
@@ -92,7 +95,6 @@ int main(int argc, char **argv)
     startsdr();
 
 	SDRPRINTF("Press 'x' to exit\n");
-
 	while(getchar()!='x');	
 
     return 0;
@@ -145,6 +147,10 @@ extern void startsdr(void) /* call as function */
 
     /* create threads */
     cratethread(hsyncthread,syncthread,NULL); /* synchronization thread */
+
+	//buffer init
+	sdrstat.buff_front = 0;
+	sdrstat.buff_rear = 0;
 
     /* sdr channel thread */
     for (i=0;i<sdrini.nch;i++) {
@@ -258,13 +264,11 @@ extern void *sdrthread(void *arg)
     if (initpltstruct(&pltacq,&plttrk,sdr)<0) {
         sdrstat.stopflag=ON;
     }
-   // sleepms(sdr->no*500); 
-	sleepms(sdr->no*100);  //[ws]
+    sleepms(sdr->no*500);  //wait some time  to let buffer get some data. >11ms data
+	//sleepms(sdr->no*100);  //[ws]
     SDRPRINTF("**** %s sdr thread %d start! ****\n",sdr->satstr,sdr->no);
 
-	//buffer init
-	sdrstat.buff_front = 0;
-	sdrstat.buff_rear = 0;
+	
 
 
     while (!sdrstat.stopflag) {
@@ -276,6 +280,8 @@ extern void *sdrthread(void *arg)
 
             /* fft correlation */
             buffloc=sdraccuisition(sdr,acqpower);
+
+			//SDRPRINTF("buffloc=%d\n",);
 
             /* plot aquisition result */
             if (sdr->flagacq&&sdrini.pltacq) {
@@ -302,7 +308,7 @@ extern void *sdrthread(void *arg)
                     dll(sdr,&sdr->trk.prm2,(double)sdr->trk.loopms/1000);
                     sdr->trk.flagloopfilter=2;
 
-                    mlock(hobsmtx);
+                    mlock(hobsmtx[sdr->no]);
 
                     /* calculate observation data */
                     if (loopcnt%(SNSMOOTHMS/sdr->trk.loopms)==0)
@@ -310,7 +316,7 @@ extern void *sdrthread(void *arg)
                     else
                         setobsdata(sdr,buffloc,cnt,&sdr->trk,0);
 
-                    unmlock(hobsmtx);
+                    unmlock(hobsmtx[sdr->no]);
 
                     /* plot correator output */
                     if (loopcnt%((int)(plttrk.pltms/sdr->trk.loopms))==0&&

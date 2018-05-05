@@ -79,7 +79,7 @@ uint8_t lexcorr_fft(sdrch_t *sdr, const char *data, int dtype, double ti, int n,
 
     /* message must be 0-255 */
     if (corri>255)
-        SDRPRINTF("error: corri=%05d codei=%06d cn0=%.1f\n",corri,codei,cn);
+        SDRPRINTF("error: corri=%05d codei=%06d cn0=%.1f\n",corri,codei,*cn);
 
     free(P); sdrfree(dataR); sdrfree(dataI); sdrfree(dataQ); cpxfree(datax);
     return (uint8_t)corri;

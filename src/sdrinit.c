@@ -106,9 +106,15 @@ void readinistr(char *file, char *sec, char *key, char *out)
 extern int readinifile(sdrini_t *ini)
 {
     int i,ret;
-    char inifile[]="D:\\Github\\GNSS-SDRLIB-master\\cli\\win\\x64\\Debug\\gnss-sdrcli.ini";
+ //   char inifile[]="D:\\Github\\GNSS-SDRLIB-master\\cli\\win\\x64\\Debug\\gnss-sdrcli.ini";
+	char inifile[] = ".\\gnss-sdrcli.ini";
     char fendfile[256],str[256];
+	char relpath[1024], abspath[1024];
 
+	getfullpath(relpath, abspath);
+//	SDRPRINTF("relpath:%s\n", relpath);
+	SDRPRINTF("abspath:%s\n", abspath);
+	SDRPRINTF("inifile:%s\n", inifile);
     /* check ini file */
     if ((ret=GetFileAttributes(inifile))<0){
         SDRPRINTF("error: gnss-sdrcli.ini doesn't exist\n");
@@ -116,6 +122,7 @@ extern int readinifile(sdrini_t *ini)
     }
     /* receiver setting */
     readinistr(inifile,"RCV","FENDCONF",fendfile);
+	SDRPRINTF("fendfile:%s\n", fendfile);
 
     /* check front-end configuration  file */
     if ((ret=GetFileAttributes(fendfile))<0){
@@ -123,6 +130,8 @@ extern int readinifile(sdrini_t *ini)
         return -1;
     }
     readinistr(fendfile,"FEND","TYPE",str);
+	SDRPRINTF("FEND Type:%s\n", str);
+
     if (strcmp(str,"STEREO")==0)     ini->fend=FEND_STEREO;
     else if (strcmp(str,"GN3SV2")==0)     ini->fend=FEND_GN3SV2;
     else if (strcmp(str,"GN3SV3")==0)     ini->fend=FEND_GN3SV3;
@@ -134,6 +143,7 @@ extern int readinifile(sdrini_t *ini)
     else if (strcmp(str,"FILEBLADERF")==0) ini->fend=FEND_FBLADERF;
     else if (strcmp(str,"FILERTLSDR")==0) ini->fend=FEND_FRTLSDR;
     else if (strcmp(str,"FILE")==0)       ini->fend=FEND_FILE;
+	else if (strcmp(str, "MAX2769_NET") == 0) ini->fend = FEND_MAX2769_NET;
     else { SDRPRINTF("error: wrong frontend type: %s\n",str); return -1; }
     if (ini->fend==FEND_FILE    ||ini->fend==FEND_FSTEREO||
         ini->fend==FEND_FGN3SV2 ||ini->fend==FEND_FGN3SV3||
@@ -292,7 +302,8 @@ extern void openhandles(void)
     initmlock(hreadmtx);
     initmlock(hfftmtx);
     initmlock(hpltmtx);
-    initmlock(hobsmtx);
+	for(int i=0;i<MAXSAT;i++)
+		initmlock(hobsmtx[i]);
     initmlock(hlexmtx);
 
     /* events */
@@ -310,7 +321,8 @@ extern void closehandles(void)
     delmlock(hreadmtx);
     delmlock(hfftmtx);
     delmlock(hpltmtx);
-    delmlock(hobsmtx);
+	for(int i=0;i<MAXSAT;i++)
+		delmlock(hobsmtx[i]);
     delmlock(hlexmtx);
 
     /* events */
@@ -321,7 +333,8 @@ extern void closehandles(void)
     hreadmtx=NULL;
     hfftmtx=NULL;
     hpltmtx=NULL;
-    hobsmtx=NULL;
+	for(int i=0;i<MAXSAT;i++)
+		hobsmtx[i]=NULL;
     hlexmtx=NULL;
     hlexeve=NULL;
 #endif

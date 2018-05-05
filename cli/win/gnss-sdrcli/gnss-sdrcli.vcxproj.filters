@@ -153,4 +153,8 @@
       <Filter>lib\rtklib</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="x64\Debug\iffile.ini" />
+    <None Include="x64\Debug\gnss-sdrcli.ini" />
+  </ItemGroup>
 </Project>

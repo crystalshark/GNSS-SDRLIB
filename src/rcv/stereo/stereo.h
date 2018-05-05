@@ -231,6 +231,7 @@ extern int STEREO_UpdateFpgaRegsStr(fpga_t *fpga, fpgaConf_t *conf);
 
 #else /* version 25(default) */
 
+#ifdef STEREO
 typedef unsigned char bit_t;
 
 typedef struct _synth_t {
@@ -295,7 +296,7 @@ int STEREO_RefillDataBuffer( void );
 int STEREO_GrabStop( void );
 void STEREO_GrabClean( void );
 #endif
-
+#endif
 #ifdef __cplusplus
 } /* extern "C" */
 #endif /* __cplusplus */

@@ -12,6 +12,8 @@
 #define STEREOBUFF sdrstat.buff
 #endif
 
+//#if 0
+#ifdef STEREO
 /* global variables ----------------------------------------------------------*/
 char fx2lp[MAX_FILENAME_LEN];
 char fpga[MAX_FILENAME_LEN];
@@ -270,3 +272,4 @@ extern void fstereo_pushtomembuf(void)
     sdrstat.buffcnt++;
     unmlock(hreadmtx);
 }
+#endif 

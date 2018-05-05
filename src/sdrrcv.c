@@ -5,6 +5,185 @@
 *-----------------------------------------------------------------------------*/
 #include "sdr.h"
 
+#ifdef MAX2769_NET
+
+
+SOCKET conn;
+int max2769_net_init()
+{
+	struct sockaddr_in server;
+	char buff[256];
+	conn = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (conn == INVALID_SOCKET)
+	{
+		SDRPRINTF("socket creat failed\n");
+		return -1;
+	}
+	int nNetTimeout = 3000;//1秒
+	setsockopt(conn, SOL_SOCKET, SO_RCVTIMEO, (char *)&nNetTimeout, sizeof(int));
+	SDRPRINTF("SOCKET created OK\n");
+	server.sin_addr.s_addr = inet_addr("192.168.31.10");
+	server.sin_family = AF_INET;
+	server.sin_port = htons(7);
+	if (connect(conn, (struct sockaddr*)&server, sizeof(server)))
+	{
+		closesocket(conn);
+		SDRPRINTF("connect error\n");
+		return -1;
+	}
+	SDRPRINTF("Connected to server 192.168.31.10:7\n");
+	sprintf(buff, "GET C\r\n\r\n");
+	send(conn, buff, strlen(buff), 0);
+	SDRPRINTF("sending command :- GET C to server\n");
+	return 0;
+
+}
+/*
+void Max2769_convert(char *src, char *dst, int n)
+{
+	unsigned int sign, mag;
+	char index = 0;
+	//char max2769_bit_table[4]={2,6,-2,-6};
+	char max2769_bit_table[4] = { 1,3,-1,-5 };
+	static int magnitude_total_count = 0, magnitude_count=0, sign_count=0;
+
+	//Max2769 I Channel data Convertion
+	if (n % 8)
+		SDRPRINTF("ERROR: n%%8 != 0\n");
+	for (int i = 0; i<n / 8; i++)
+	{
+		//	primary_data=*((unsigned int *)(&(src[8*i])));
+		//	secondary_data=*((unsigned int *)(&(src[8*i+4])));
+		sign = *((unsigned int *)(&(src[8 * i]))); //sign
+		mag = *((unsigned int *)(&(src[8 * i + 4]))); //mag
+													  //msb
+		for (int j = 0; j<32; j++)
+		{
+			index = ((mag & (1 << j)) >> j) + ((sign & (1 << j)) >> j) * 2;
+			dst[32 * i + 31 - j] = max2769_bit_table[index];
+			//dst[32*i+j]=max2769_bit_table[index];		
+
+			magnitude_total_count++;
+			if ((mag & (1 << j)) >> j)
+				magnitude_count++;
+			if ((sign & (1 << j)) >> j)
+				sign_count++;
+		}
+	}
+
+}
+*/
+
+void Max2769_convert_stereo(char *src, char *dst, int n)
+{
+	static uint64_t magnitude_total_count=0, sign_count=0, magnitude_count = 0;
+	int i;
+	//char index = 0;
+	unsigned char d;
+	//char max2769_bit_table[4]={2,6,-2,-6};
+	char max2769_bit_table[4] = { 1,3,-1,-5 }; //符号位为，则adc数据为负数
+	
+
+	for (i = 0; i<n; i++)
+	{
+		d = src[i];
+		dst[i * 4 + 0] = max2769_bit_table[(d & 0x3)];
+		dst[i * 4 + 1] = max2769_bit_table[((d >> 2) & 0x3)];
+		dst[i * 4 + 2] = max2769_bit_table[((d >> 4) & 0x3)];
+		dst[i * 4 + 3] = max2769_bit_table[((d >> 6) & 0x3)];
+
+		magnitude_total_count += 4;
+		sign_count += ((d >> 1) & 0x01) + ((d >> 3) & 0x01) + ((d >> 5) & 0x01) + ((d >> 7) & 0x01);
+		magnitude_count += ((d >> 0) & 0x01) + ((d >> 2) & 0x01) + ((d >> 4) & 0x01) + ((d >> 6) & 0x01);
+	}
+	if (magnitude_total_count > 0 && magnitude_total_count % (4 * 16368000) == 0)
+		SDRPRINTF("sign:%.3f mag:%.3f\n", (float)sign_count / magnitude_total_count,
+		(float)magnitude_count / magnitude_total_count);
+
+}
+
+int fmax2769_net_pushtomembuf()
+{
+	char max2769_bit_table[4] = { 1,3,-1,-5 };  //符号位为，则adc数据为负数
+	int64_t nout = 0;
+	int rcv_n = 0;
+	uint64_t cur_buff_front;
+
+	
+	//5ms 需要读取
+	//while (y = recv(conn, buff, FILE_BUFFSIZE, 0))
+	int rt;
+	static char buff[FILE_BUFFSIZE/4],buff_conv[FILE_BUFFSIZE];
+	static int recv_count = 0;
+	
+	rt = recv(conn, buff, FILE_BUFFSIZE / 4, 0);
+	//fixme: 如果超过了，分片
+	/*
+	uint64_t membuffloc = dtype * buffloc % (MEMBUFFLEN*dtype*FILE_BUFFSIZE);
+	int nout;
+
+	n = dtype * n;
+	nout = (int)((membuffloc + n) - (MEMBUFFLEN*dtype*FILE_BUFFSIZE));
+
+	mlock(hbuffmtx);
+	if (ftype == FTYPE1) {
+		if (nout>0) {
+			memcpy(expbuf, &sdrstat.buff[membuffloc], n - nout);
+			memcpy(&expbuf[(n - nout)], &sdrstat.buff[0], nout);
+		}
+		else {
+			memcpy(expbuf, &sdrstat.buff[membuffloc], n);
+		}
+	}*/
+
+	if (rt > 0)
+	{
+		Max2769_convert_stereo(buff, buff_conv, rt);//buff_conv的长度为4*rt
+		rcv_n = 4 * rt;
+		cur_buff_front = sdrstat.buff_front % sdrstat.buffsize;
+		mlock(hbuffmtx);
+		nout = (cur_buff_front + rcv_n) - sdrstat.buffsize;
+		if (nout > 0)
+		{
+			//Max2769_convert_stereo(buff, (char*)&sdrstat.buff[sdrstat.buff_front%sdrstat.buffsize], (sdrstat.buffsize-nout)/4);
+			//Max2769_convert_stereo(&buff[(sdrstat.buffsize - nout) / 4], (char*)&sdrstat.buff[0], nout/4);
+			memcpy((char*)&sdrstat.buff[cur_buff_front], &buff_conv[0], rcv_n-nout);
+			memcpy((char*)&sdrstat.buff[0], &buff_conv[rcv_n - nout], nout);
+
+		}else
+			memcpy((char*)&sdrstat.buff[cur_buff_front], buff_conv, rcv_n);
+		
+		unmlock(hbuffmtx);
+
+		mlock(hreadmtx);
+		sdrstat.buff_front = sdrstat.buff_front + rcv_n;
+		//sdrstat.buffcnt = (uint64_t)(sdrstat.buff_front / sdrstat.buffsize) ;
+		sdrstat.buffcnt = (uint64_t)(sdrstat.buff_front / FILE_BUFFSIZE);
+		//sdrstat.buffcnt++;
+		//sdrstat.buff_front = (sdrstat.buff_front + sdrini.dtype[0] * FILE_BUFFSIZE) % sdrstat.buffsize;
+		unmlock(hreadmtx);
+		//SDRPRINTF("net_recv:%d buff_front=%d buffcnt=%d\n",rt, sdrstat.buff_front, sdrstat.buffcnt);
+	}
+	
+	
+	
+	return 0;
+
+
+
+}
+int max2769_net_quit()
+{
+	closesocket(conn);
+	SDRPRINTF("SOCKET closed\n");
+	return 0;
+}
+
+#endif
+
+
+
+
 /* sdr receiver initialization -------------------------------------------------
 * receiver initialization, memory allocation, file open
 * args   : sdrini_t *ini    I   sdr initialization struct
@@ -224,6 +403,24 @@ extern int rcvinit(sdrini_t *ini)
             }
         }
         break;
+#ifdef MAX2769_NET
+	case FEND_MAX2769_NET:
+		max2769_net_init();
+		/* frontend buffer size */
+		sdrstat.fendbuffsize = FILE_BUFFSIZE; /* frontend buff size */
+		sdrstat.buffsize = FILE_BUFFSIZE * MEMBUFFLEN; /* total */
+
+		/* memory allocation */
+		
+			sdrstat.buff = (uint8_t*)malloc(ini->dtype[0] * sdrstat.buffsize);
+			if (NULL == sdrstat.buff) {
+				SDRPRINTF("error: failed to allocate memory for the buffer\n");
+				return -1;
+			}
+		
+		
+		break;
+#endif
     default:
         return -1;
     }
@@ -261,6 +458,11 @@ extern int rcvquit(sdrini_t *ini)
     case FEND_RTLSDR:
         rtlsdr_quit();
         break;
+#endif
+#ifdef MAX2769_NET
+	case FEND_MAX2769_NET:
+		max2769_net_quit();
+		break;
 #endif
     /* Front End Binary File */
     case FEND_FSTEREO:
@@ -304,6 +506,7 @@ extern int rcvgrabstart(sdrini_t *ini)
 #endif
     default:
         return 0;
+
     }
     return 0;
 }
@@ -388,6 +591,12 @@ extern int rcvgrabdata(sdrini_t *ini)
         file_pushtomembuf(); /* copy to membuffer */
         sleepms(READFILE_DELAYMS);   //[ws] sleepms(5);
         break;
+#ifdef MAX2769_NET
+	case FEND_MAX2769_NET:
+		fmax2769_net_pushtomembuf();
+		sleepms(5);
+		break;
+#endif
     default:
         return -1;
     }
@@ -454,8 +663,10 @@ extern int rcvgetbuff(sdrini_t *ini, uint64_t buffloc, int n, int ftype,
 #endif
     /* File */
     case FEND_FILE:
+	case FEND_MAX2769_NET:
         file_getbuff(buffloc,n,ftype,dtype,expbuf);
         break;
+
     default:
         return -1;
     }

@@ -16,6 +16,7 @@ extern uint64_t sdraccuisition(sdrch_t *sdr, double *power)
     int i;
     char *data;
     uint64_t buffloc;
+	int64_t ibuffloc;
 
     /* memory allocation */
     data=(char*)sdrmalloc(sizeof(char)*2*sdr->nsamp*sdr->dtype);
@@ -24,8 +25,18 @@ extern uint64_t sdraccuisition(sdrch_t *sdr, double *power)
     mlock(hreadmtx);
 	//sdr->acq.intg=10ms 捕获的积分时间。10ms
 	//获取与当前数据最近的11ms数据/
-    buffloc=(sdrstat.fendbuffsize*sdrstat.buffcnt)-(sdr->acq.intg+1)*sdr->nsamp;
-    unmlock(hreadmtx);
+	
+	ibuffloc =(sdrstat.fendbuffsize*sdrstat.buffcnt)-(sdr->acq.intg+1)*sdr->nsamp;
+	buffloc = ibuffloc;
+	unmlock(hreadmtx);
+
+	if (ibuffloc > 0)
+		buffloc = ibuffloc;
+	else
+	{
+		SDRPRINTF("sdraccuisition:ibuffloc<0\n");
+		return 0;
+	}
 
     /* acquisition integration */
     for (i=0;i<sdr->acq.intg;i++) {

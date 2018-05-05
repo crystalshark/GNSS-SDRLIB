@@ -48,8 +48,8 @@ extern void *syncthread(void * arg)
 
     while (!sdrstat.stopflag) {
 
+#if 0
         mlock(hobsmtx);
-
         /* copy all tracking data */
         for (i=nsat=0;i<sdrini.nch;i++) {
             if (sdrch[i].nav.flagdec&&sdrch[i].nav.sdreph.eph.week!=0) {
@@ -58,8 +58,21 @@ extern void *syncthread(void * arg)
                 nsat++;
             }
         }
-
         unmlock(hobsmtx);
+#else
+		
+		/* copy all tracking data */
+		for (i = nsat = 0; i<sdrini.nch; i++) {
+			mlock(hobsmtx[i]);
+			if (sdrch[i].nav.flagdec&&sdrch[i].nav.sdreph.eph.week != 0) {
+				memcpy(&trk[nsat], &sdrch[i].trk, sizeof(sdrch[i].trk));
+				isat[nsat] = i;
+				nsat++;
+			}
+			unmlock(hobsmtx[i]);
+		}
+		
+#endif
 
         /* find minimum tow channel (most distant satellite) */
         oldreftow=reftow;

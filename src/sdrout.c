@@ -398,7 +398,7 @@ extern void sendsbas(sdrsbas_t *sbas, sdrsoc_t *soc)
 void writelog_header(FILE *fp, sdrtrk_t *trk)
 {
     int i,ind[64]={0},n=trk->corrn;
-    fprintf(fp,"%Cnt,Tow,IP,QP,sumI,sumQ");
+    fprintf(fp,"%%Cnt,Tow,IP,QP,sumI,sumQ");
 
     /* generating correlation points indices */
     for (i=0;i<n;i++) {
